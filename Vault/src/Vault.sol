@@ -1,3 +1,6 @@
+//Author: Josh Casey
+// Date: 30/4/2024
+//Aspects of the code inspired by Jakub Zurakowski, Vault Manager on there GitHub, "https://github.com/ZurakowskiJakub/vault-manager".
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
