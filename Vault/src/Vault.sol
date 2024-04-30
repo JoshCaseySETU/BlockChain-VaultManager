@@ -54,22 +54,21 @@ contract VaultManager {
     }
 
     function withdraw(uint256 vaultId, uint256 amount) public onlyOwner(vaultId) {
-
         require(vaultId < vaults.length, "Invalid vault ID");
-        require(amount > 0, "Must withdraw a positive amount");
+        require(amount > 0, "Amount must be greater than zero");
 
         Vault storage vault = vaults[vaultId];
 
-        if (vault.balance < amount) {
-            revert("Insufficient balance");  
-        }else {
+        require(vault.balance >= amount, "Insufficient balance");
 
-        vault.balance -= amount;  
-        payable(msg.sender).transfer(amount);  
+        vault.balance -= amount;
+
+        (bool success, ) = payable(msg.sender).call{value: amount}("");
+        require(success, "Transfer failed");
 
         emit VaultWithdrawn(vaultId, msg.sender, amount);
-        }  
-    }
+}
+
 
     function getVault(uint256 vaultId) public view returns (Vault memory) {
         return vaults[vaultId];

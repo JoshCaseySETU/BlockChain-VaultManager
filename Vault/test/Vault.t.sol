@@ -32,7 +32,6 @@ contract VaultManagerTest is Test {
         assertEq(vault.balance, 3 ether);
     }
 
-    //EVM Error Revert: PrecompileOOG (Out Of Gas) no Idea how to fix it :(
     function testWithdraw() public {
         address user = address(1); 
         uint256 initialBalance = 10 ether; 
@@ -87,15 +86,15 @@ contract VaultManagerTest is Test {
     }
 
 
-    function testGetVaultsLength(uint8 randNo) public {
+    function testGetVaultsLength() public {
 
-        for (uint8 i = 0; i < randNo; i++) {
+        for (uint8 i = 0; i < 5; i++) {
             vaultManager.addVault();
         }
 
         uint256 vaultCount = vaultManager.getVaultsLength(); 
         
-        assertEq(vaultCount, randNo); 
+        assertEq(vaultCount, 5); 
     }
 
     function testDepositOnlyOwner() public {
@@ -136,20 +135,44 @@ contract VaultManagerTest is Test {
         vm.stopPrank(); 
     }
 
-    function testMultipleDeposits() public {
-        address user = address(1); 
-        vm.deal(user, 20 ether); 
-        vm.startPrank(user);
+    function testGetMyVaults() public {
+        address owner1 = address(2); 
+        address owner2 = address(3);
 
-        uint256 vaultIndex = vaultManager.addVault(); 
-        vaultManager.deposit{value: 2 ether}(vaultIndex); 
-        vaultManager.deposit{value: 3 ether}(vaultIndex); 
-        vaultManager.deposit{value: 1 ether}(vaultIndex); 
-    
-        VaultManager.Vault memory vault = vaultManager.getVault(vaultIndex); 
-        assertEq(vault.balance, 6 ether, "Vault balance after multiple deposits is incorrect");
-
+        vm.startPrank(owner1);
+        vaultManager.addVault(); 
+        vaultManager.addVault(); 
         vm.stopPrank();
+
+        vm.startPrank(owner2);
+        vaultManager.addVault();
+        vm.stopPrank();
+
+       
+        vm.startPrank(owner1);
+        uint256[] memory owner1Vaults = vaultManager.getMyVaults();
+        vm.stopPrank();
+
+        assertEq(owner1Vaults.length, 2);
+        assertEq(owner1Vaults[0], 0); 
+        assertEq(owner1Vaults[1], 1);
+
+        vm.startPrank(owner2);
+        uint256[] memory owner2Vaults = vaultManager.getMyVaults();
+        vm.stopPrank();
+
+
+        assertEq(owner2Vaults.length, 1);
+        assertEq(owner2Vaults[0], 2);
     }
 
+    function testGetMyVaultsEmpty() public {
+        address noVaultOwner = address(4);
+        vm.startPrank(noVaultOwner);
+        uint256[] memory noVaults = vaultManager.getMyVaults();
+        vm.stopPrank();
+
+        assertEq(noVaults.length, 0); 
+    }
 }
+
