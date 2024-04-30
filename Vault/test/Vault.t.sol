@@ -5,115 +5,151 @@ import {Test, console} from "forge-std/Test.sol";
 import {VaultManager, Unauthorised} from "../src/Vault.sol";
 
 contract VaultManagerTest is Test {
-    VaultManager public vaultManager; // Declare an instance of VaultManager
+    VaultManager public vaultManager; 
 
     function setUp() public {
-        vaultManager = new VaultManager(); // Initialize the VaultManager
+        vaultManager = new VaultManager(); 
     }
 
-    // Test adding a new vault and verify its index
     function testAddVault() public {
-        uint256 vaultIndex = vaultManager.addVault(); // Add a vault
-        assertEq(vaultIndex, 0); // Ensure the index is correct (first vault)
+        uint256 vaultIndex = vaultManager.addVault(); 
+        assertEq(vaultIndex, 0); 
     }
 
-    // Test depositing into a vault
     function testDeposit() public {
-        address depositor = address(1); // Simulate a depositor
-        uint256 initialBalance = 20 ether;
-        startHoax(depositor, initialBalance); // Start hoax with known user and balance
+        address depositor = address(1); 
+        uint256 initialBalance = 20 ether; 
+        vm.deal(depositor, initialBalance); 
 
-        uint256 vaultIndex = vaultManager.addVault(); // Create a vault
-        vaultManager.deposit{value: 3 ether}(vaultIndex); // Deposit into the vault
+        vm.startPrank(depositor);
+        uint256 vaultIndex = vaultManager.addVault(); 
+        vaultManager.deposit{value: 3 ether}(vaultIndex); 
 
-        VaultManager.Vault memory vault = vaultManager.getVault(vaultIndex); // Get vault details
+        VaultManager.Vault memory vault = vaultManager.getVault(vaultIndex); 
 
-        vm.stopPrank(); // Stop hoax context
+        vm.stopPrank(); 
 
-        assertEq(vault.balance, 3 ether); // Ensure balance matches the deposit
+        assertEq(vault.balance, 3 ether);
     }
 
-    // Test withdrawing from a vault
+    //EVM Error Revert: PrecompileOOG (Out Of Gas) no Idea how to fix it :(
     function testWithdraw() public {
         address user = address(1); 
-        startHoax(user, 200 ether); 
-        uint256 vaultIndex = vaultManager.addVault(); 
-        vaultManager.deposit{value: 5 ether}(vaultIndex);
-        vaultManager.withdraw(vaultIndex, 1 ether); 
-        VaultManager.Vault memory vault = vaultManager.getVault(vaultIndex); 
-        vm.stopPrank();
-        assertEq(vault.balance, 4 ether);
-}
+        uint256 initialBalance = 10 ether; 
+        vm.deal(user, initialBalance); 
+    
+        vm.startPrank(user); 
 
-    // Test withdrawing with insufficient balance
+        uint256 vaultIndex = vaultManager.addVault();
+ 
+        vaultManager.deposit{value: 10 ether}(vaultIndex);
+
+        vaultManager.withdraw(vaultIndex, 5 ether);
+
+        VaultManager.Vault memory vault = vaultManager.getVault(vaultIndex);
+
+        vm.stopPrank();
+
+        assertEq(vault.balance, 5 ether);
+    }
+
     function testWithdrawInsufficientFunds() public {
         address user = address(1);
-        startHoax(user, 20 ether); // Start with user context
-        
-        uint256 vaultIndex = vaultManager.addVault(); // Create a vault
-        vaultManager.deposit{value: 4 ether}(vaultIndex); // Deposit into the vault
+        uint256 initialBalance = 20 ether; 
 
-        vm.expectRevert("Insufficient balance"); // Expect revert
-        vaultManager.withdraw(vaultIndex, 6 ether); // Attempt to withdraw more than balance
-        
-        vm.stopPrank(); // End context
+        vm.deal(user, initialBalance);
+        vm.startPrank(user);
+    
+        uint256 vaultIndex = vaultManager.addVault(); 
+        vaultManager.deposit{value: 4 ether}(vaultIndex); 
+    
+        vm.expectRevert("Insufficient balance"); 
+        vaultManager.withdraw(vaultIndex, 6 ether); 
+
+        vm.stopPrank(); 
     }
 
-    // Test retrieving vault details
+
     function testGetVault() public {
-        address user = address(1);
-        startHoax(user, 20 ether); // Start with user context
-        
-        uint256 vaultIndex = vaultManager.addVault(); // Create a vault
+        address user = address(1); // The user who will interact with the vault
+        uint256 initialBalance = 20 ether; // The starting ether balance for the user
 
-        VaultManager.Vault memory vault = vaultManager.getVault(vaultIndex); // Get vault details
+        vm.deal(user, initialBalance);
+        vm.startPrank(user);
 
-        vm.stopPrank(); // End context
+        uint256 vaultIndex = vaultManager.addVault();
+        VaultManager.Vault memory vault = vaultManager.getVault(vaultIndex);
 
-        assertEq(vault.owner, user); // Ensure the correct owner
-        assertEq(vault.balance, 0 ether); // Ensure the initial balance is zero
+        assertEq(vault.owner, user, "Vault owner mismatch");
+        assertEq(vault.balance, 0 ether, "Vault balance mismatch");
+        vm.stopPrank();
+
     }
 
-    // Test getting the total number of vaults
+
     function testGetVaultsLength(uint8 randNo) public {
-        // Create multiple vaults
+
         for (uint8 i = 0; i < randNo; i++) {
             vaultManager.addVault();
         }
 
-        uint256 vaultCount = vaultManager.getVaultsLength(); // Get the vault count
+        uint256 vaultCount = vaultManager.getVaultsLength(); 
         
-        assertEq(vaultCount, randNo); // Ensure the count matches the number of vaults created
+        assertEq(vaultCount, randNo); 
     }
 
-    // Test deposit only allowed for the vault owner
     function testDepositOnlyOwner() public {
-        address owner = address(1);
-        address notOwner = address(2);
-
-        startHoax(owner, 20 ether); // Start with owner context
-        uint256 vaultIndex = vaultManager.addVault(); // Owner creates a vault
-        vm.stopPrank(); // End context
-
-        startHoax(notOwner, 20 ether); // Simulate a different user (non-owner)
-        vm.expectRevert(Unauthorised.selector); // Expecting unauthorized revert
-        vaultManager.deposit{value: 5 ether}(vaultIndex); // Non-owner attempts deposit
-        vm.stopPrank(); // End context
+        address owner = address(1); 
+        address notOwner = address(2); 
+    
+        vm.deal(owner, 20 ether); 
+        vm.startPrank(owner); 
+    
+        uint256 vaultIndex = vaultManager.addVault(); 
+        vm.stopPrank(); 
+    
+        vm.deal(notOwner, 20 ether); 
+        vm.startPrank(notOwner);
+    
+        vm.expectRevert(Unauthorised.selector); 
+        vaultManager.deposit{value: 5 ether}(vaultIndex); 
+        vm.stopPrank(); 
     }
 
-    // Test withdrawal only allowed for the vault owner
+
     function testWithdrawOnlyOwner() public {
-        address owner = address(1);
-        address notOwner = address(2);
+        address owner = address(1); 
+        address notOwner = address(2); 
 
-        startHoax(owner, 20 ether); // Start with owner context
-        uint256 vaultIndex = vaultManager.addVault(); // Owner creates a vault
-        vaultManager.deposit{value: 5 ether}(vaultIndex); // Owner deposits
-        vm.stopPrank(); // End the owner context
-        
-        startHoax(notOwner, 20 ether); // Simulate a different user (non-owner)
-        vm.expectRevert(Unauthorised.selector); // Expecting unauthorized revert
-        vaultManager.withdraw(vaultIndex, 5 ether); // Non-owner attempts withdrawal
-        vm.stopPrank(); // End context
+        vm.deal(owner, 20 ether); 
+        vm.startPrank(owner); 
+
+        uint256 vaultIndex = vaultManager.addVault(); 
+        vaultManager.deposit{value: 5 ether}(vaultIndex); 
+        vm.stopPrank(); 
+
+        vm.deal(notOwner, 20 ether); 
+        vm.startPrank(notOwner);
+    
+        vm.expectRevert(Unauthorised.selector); 
+        vaultManager.withdraw(vaultIndex, 5 ether);
+        vm.stopPrank(); 
     }
+
+    function testMultipleDeposits() public {
+        address user = address(1); 
+        vm.deal(user, 20 ether); 
+        vm.startPrank(user);
+
+        uint256 vaultIndex = vaultManager.addVault(); 
+        vaultManager.deposit{value: 2 ether}(vaultIndex); 
+        vaultManager.deposit{value: 3 ether}(vaultIndex); 
+        vaultManager.deposit{value: 1 ether}(vaultIndex); 
+    
+        VaultManager.Vault memory vault = vaultManager.getVault(vaultIndex); 
+        assertEq(vault.balance, 6 ether, "Vault balance after multiple deposits is incorrect");
+
+        vm.stopPrank();
+    }
+
 }
